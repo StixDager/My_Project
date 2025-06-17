@@ -5,7 +5,7 @@ from config import CURRENCIES
 class APIException(Exception):
     pass
 
-class CurrensyConverter:
+class CurrencyConverter:
     @staticmethod
     def get_price(base: str, quote: str, amount: str) -> float:
         if base == quote:
@@ -34,7 +34,7 @@ class CurrensyConverter:
             raise APIException("Ошибка при получении данных от API.")
         
         try:
-            rate = data["conversion_rates"][quote_ticker]
+            rate = data["rates"][quote_ticker]  # 🟢 исправлено здесь
         except KeyError:
             raise APIException(f"Не удалось получить курс для валюты: {quote}")
         

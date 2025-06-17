@@ -1,12 +1,43 @@
-import requests  # импортируем наш знакомый модуль
-import lxml.html
-from lxml import etree
+import telebot
+from config import TOKEN, CURRENCIES
+from extensions import CurrencyConverter, APIException
 
+bot = telebot.TeleBot(TOKEN)
 
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    text = (
+        "👋 Привет! Я бот-конвертер валют.\n"
+        "Чтобы узнать цену валюты, отправь сообщение в формате:\n"
+        "<имя валюты> <в какую валюту перевести> <количество>\n\n"
+        "Пример:\n"
+        "`доллар рубль 100`\n\n"
+        "Посмотреть доступные валюты: /values"
+    )
+    bot.reply_to(message, text, parse_mode='Markdown')
 
-html = requests.get('https://www.python.org/').content  # получим html главной странички официального сайта python
+@bot.message_handler(commands=['values'])
+def send_values(message):
+    text = "📌 Доступные валюты:\n"
+    for key in CURRENCIES:
+        text += f"▫️ {key}\n"
+    bot.reply_to(message, text)
 
-tree = lxml.html.document_fromstring(html)
-title = tree.xpath('/html/head/title/text()')  # забираем текст тега <title> из тега <head>, который лежит в свою очередь внутри тега <html> (в этом невидимом теге <head> у нас хранится основная информация о страничке, её название и инструкции по отображению в браузере) 
+@bot.message_handler(content_types=['text'])
+def convert(message):
+    try:
+        values = message.text.split()
 
-print(title)  # выводим полученный заголовок страницы 
+        if len(values) != 3:
+            raise APIException("❗ Введите команду в формате: <валюта_из> <валюта_в> <количество>")
+
+        base, quote, amount = values
+        total = CurrencyConverter.get_price(base, quote, amount)
+    except APIException as e:
+        bot.reply_to(message, f"Ошибка пользователя:\n{e}")
+    except Exception as e:
+        bot.reply_to(message, f"Ошибка сервера:\n{e}")
+    else:
+        text = f"💱 {amount} {base} = {total:.2f} {quote}"
+        bot.send_message(message.chat.id, text)
+bot.polling(none_stop=True)
